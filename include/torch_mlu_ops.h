@@ -1,0 +1,1176 @@
+/*************************************************************************
+ * Copyright (C) [2023-2026] by Cambricon, Inc.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+ * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *************************************************************************/
+#ifndef CSRC_TORCH_API_TORCH_MLU_OPS_H_
+#define CSRC_TORCH_API_TORCH_MLU_OPS_H_
+
+#include <cstdint>
+#include <map>
+#include <optional>
+#include <vector>
+#include "torch/extension.h"
+
+namespace tmo {
+namespace torch_api {
+
+void fused_layernorm(const at::Tensor &input,
+                     const at::Tensor &out,
+                     const c10::optional<at::Tensor> &residual,
+                     const c10::optional<at::Tensor> &gamma,
+                     const c10::optional<at::Tensor> &beta,
+                     const c10::optional<at::Tensor> &bias,
+                     const c10::optional<at::Tensor> &quant_scale,
+                     const c10::optional<at::Tensor> &residual_out,
+                     const c10::optional<at::Tensor> &smooth_quant_scale,
+                     const c10::optional<at::Tensor> &normed_out,
+                     const std::string &norm_mode,
+                     double eps,
+                     bool store_output_before_norm,
+                     bool store_output_after_norm,
+                     bool dynamic_quant,
+                     bool mx_quant = false,
+                     bool transpose_4d_1_2 = false);
+
+void layernorm_forward(const at::Tensor &input,
+                       at::Tensor &output,
+                       const c10::optional<at::Tensor> &gamma,
+                       const c10::optional<at::Tensor> &beta,
+                       double eps,
+                       double gamma_add_coef = 0);
+
+void flash_attention(const at::Tensor &q,
+                     const at::Tensor &k,
+                     const at::Tensor &v,
+                     const at::Tensor &output,
+                     const c10::optional<at::Tensor> &output_lse,
+                     const c10::optional<at::Tensor> &cu_seq_lens_q,
+                     const c10::optional<at::Tensor> &cu_seq_lens_kv,
+                     const c10::optional<at::Tensor> &alibi_slope,
+                     const c10::optional<at::Tensor> &attn_bias,
+                     const c10::optional<at::Tensor> &q_quant_scale,
+                     const c10::optional<at::Tensor> &k_quant_scale,
+                     const c10::optional<at::Tensor> &v_quant_scale,
+                     const c10::optional<at::Tensor> &out_quant_scale,
+                     const c10::optional<at::Tensor> &block_tables,
+                     const c10::SymInt max_seq_len_q,
+                     const c10::SymInt max_seq_len_kv,
+                     const double softmax_scale,
+                     const bool is_causal,
+                     const c10::SymInt window_size_left,
+                     const c10::SymInt window_size_right,
+                     const std::string &compute_dtype,
+                     bool return_lse,
+                     const c10::optional<at::Tensor> &q2k_block_idx = c10::nullopt,
+                     const c10::optional<at::Tensor> &q2k_block_num = c10::nullopt,
+                     const c10::optional<at::Tensor> &variable_block_sizes = c10::nullopt,
+                     const c10::SymInt q_block_size = -1,
+                     const c10::SymInt k_block_size = -1,
+                     const c10::optional<torch::Tensor> &sink = c10::nullopt);
+
+std::vector<at::Tensor> aot_flash_attention(
+    const at::Tensor &q,
+    const at::Tensor &k,
+    const at::Tensor &v,
+    const c10::optional<at::Tensor> &cu_seq_lens_q,
+    const c10::optional<at::Tensor> &cu_seq_lens_kv,
+    const c10::optional<at::Tensor> &alibi_slope,
+    const c10::optional<at::Tensor> &attn_bias,
+    const c10::optional<at::Tensor> &q_quant_scale,
+    const c10::optional<at::Tensor> &k_quant_scale,
+    const c10::optional<at::Tensor> &v_quant_scale,
+    const c10::optional<at::Tensor> &out_quant_scale,
+    const c10::optional<at::Tensor> &block_tables,
+    const c10::SymInt max_seq_len_q,
+    const c10::SymInt max_seq_len_kv,
+    const double softmax_scale,
+    const bool is_causal,
+    const c10::SymInt window_sizes_left,
+    const c10::SymInt window_sizes_right,
+    const std::string &compute_dtype,
+    bool return_lse,
+    const c10::optional<at::Tensor> &q2k_block_idx,
+    const c10::optional<at::Tensor> &q2k_block_num,
+    const c10::optional<at::Tensor> &variable_block_sizes,
+    const c10::SymInt q_blocks_size,
+    const c10::SymInt k_blocks_size,
+    const std::string &dtype,
+    const c10::optional<torch::Tensor> &sink = c10::nullopt);
+
+void single_query_cached_kv_attn(
+    const torch::Tensor &q_ori,
+    const torch::Tensor &k_cache,
+    const torch::Tensor &output,
+    const torch::Tensor &block_tables,
+    const torch::Tensor &context_lens,
+    const c10::optional<torch::Tensor> &v_cache,
+    const c10::optional<torch::Tensor> &output_lse,
+    const c10::optional<torch::Tensor> &q_quant_scale,
+    const c10::optional<torch::Tensor> &k_cache_quant_scale,
+    const c10::optional<torch::Tensor> &v_cache_quant_scale,
+    const c10::optional<torch::Tensor> &out_quant_scale,
+    const c10::optional<torch::Tensor> &alibi_slopes,
+    const c10::optional<torch::Tensor> &mask,
+    const std::string &compute_dtype,
+    c10::SymInt max_context_len,
+    c10::SymInt windows_size_left,
+    c10::SymInt windows_size_right,
+    double softmax_scale,
+    bool return_lse,
+    int64_t kv_cache_quant_bit_size,
+    const c10::optional<torch::Tensor> &cu_seq_q = c10::nullopt,  // [batch + 1]
+    c10::SymInt max_seq_q = -1,
+    const c10::optional<torch::Tensor> &sink = c10::nullopt);  // [head_num_q]
+
+void reshape_linear_cache(const at::Tensor &key,
+                          const c10::optional<at::Tensor> &value,
+                          at::Tensor &key_cache,
+                          const c10::optional<at::Tensor> &value_cache,
+                          const at::Tensor &context_lengths,
+                          const c10::SymInt max_context_len,
+                          bool packed,
+                          const c10::optional<at::Tensor> &context_seq_offset,
+                          const c10::optional<at::Tensor> &cache_bs_id,
+                          const c10::optional<at::Tensor> &cache_seqlen_offset);
+
+void reshape_paged_cache(torch::Tensor &k,
+                         const c10::optional<torch::Tensor> &v,
+                         torch::Tensor &k_cache,
+                         const c10::optional<torch::Tensor> &v_cache,
+                         const torch::Tensor &slot_mapping,
+                         bool direction);
+
+void multi_layer_kv_transfer(torch::Tensor &key_value,
+                             const torch::Tensor &key_value_ptrs,
+                             const torch::Tensor &slot_mapping,
+                             const int64_t paged_memory_device,
+                             c10::SymInt page_buffer_size,
+                             const int64_t direction,
+                             const int64_t kv_format,
+                             c10::SymInt block_size,
+                             c10::SymInt head_size,
+                             c10::SymInt skip_prefix_n_tokens);
+
+void multi_layer_block_kv_transfer(torch::Tensor paged_buffer_ptrs_tensor,
+                                   const torch::Tensor &lmcache_objects_ptrs,
+                                   const torch::Tensor &block_ids,
+                                   const int64_t paged_memory_device,
+                                   int64_t direction,
+                                   c10::SymInt kv_size,
+                                   c10::SymInt block_num,
+                                   c10::SymInt block_size,
+                                   c10::SymInt num_heads,
+                                   c10::SymInt head_size,
+                                   c10::SymInt dtype_size,
+                                   c10::SymInt lmcache_chunk_size,
+                                   int64_t kv_format,
+                                   c10::SymInt skip_prefix_n_blocks);
+
+void quant_to_paged_cache(const torch::Tensor &k,
+                          const c10::optional<torch::Tensor> &v,
+                          torch::Tensor &k_cache,
+                          const c10::optional<torch::Tensor> &v_cache,
+                          torch::Tensor &k_cache_scale,
+                          const c10::optional<torch::Tensor> &v_cache_scale,
+                          const torch::Tensor &slot_mapping);
+
+void offline_quant_to_paged_cache(const torch::Tensor &k,
+                                  const c10::optional<torch::Tensor> &v,
+                                  const c10::optional<torch::Tensor> &k_cache_scale_per_channel,
+                                  const c10::optional<torch::Tensor> &v_cache_scale_per_channel,
+                                  const torch::Tensor &slot_mapping,
+                                  torch::Tensor &k_cache,
+                                  const c10::optional<torch::Tensor> &v_cache,
+                                  double k_cache_scale_per_tensor,
+                                  double v_cache_scale_per_tensor);
+
+void quant_to_linear_cache(const at::Tensor &key,
+                           const c10::optional<at::Tensor> &value,
+                           at::Tensor &key_cache,
+                           const c10::optional<at::Tensor> &value_cache,
+                           at::Tensor &key_cache_scale,
+                           const c10::optional<at::Tensor> &value_cache_scale,
+                           const at::Tensor &context_lengths,
+                           const c10::SymInt max_context_len,
+                           bool packed,
+                           const c10::optional<at::Tensor> &context_seq_offset,
+                           const c10::optional<at::Tensor> &cache_bs_id,
+                           const c10::optional<at::Tensor> &cache_seqlen_offset,
+                           const int64_t quant_bit);
+
+void offline_quant_to_linear_cache(const at::Tensor &key,
+                                   const c10::optional<at::Tensor> &value,
+                                   at::Tensor &key_cache,
+                                   const c10::optional<at::Tensor> &value_cache,
+                                   const c10::optional<at::Tensor> &key_cache_scale,
+                                   const c10::optional<at::Tensor> &value_cache_scale,
+                                   const at::Tensor &context_lengths,
+                                   const c10::SymInt max_context_len,
+                                   const int64_t quant_mode,
+                                   const bool packed,
+                                   const c10::optional<at::Tensor> &context_seq_offset,
+                                   const c10::optional<at::Tensor> &cache_bs_id,
+                                   const c10::optional<at::Tensor> &cache_seqlen_offset,
+                                   double key_cache_scale_per_tensor,
+                                   double value_cache_scale_per_tensor);
+
+void quant_mx_to_paged_cache(const torch::Tensor &k,
+                             const c10::optional<torch::Tensor> &v,
+                             const torch::Tensor &k_cache,
+                             const c10::optional<torch::Tensor> &v_cache,
+                             const torch::Tensor &k_cache_scale,
+                             const c10::optional<torch::Tensor> &v_cache_scale,
+                             const torch::Tensor &slot_mapping,
+                             const c10::optional<torch::Tensor> &cu_seqlens,
+                             const c10::optional<torch::Tensor> &recent_v,
+                             const c10::optional<torch::Tensor> &recent_seqlens,
+                             const c10::optional<torch::Tensor> &recent_slotmapping,
+                             const int64_t quant_bits);
+
+void apply_rotary(const torch::Tensor &input,
+                  const torch::Tensor &output,
+                  const torch::Tensor &sin_cache,
+                  const torch::Tensor &cos_cache,
+                  const c10::optional<torch::Tensor> &position_ids,
+                  const c10::optional<torch::Tensor> &cu_seqlens,
+                  bool interleaved,
+                  bool discrete,
+                  bool dynamic_ntk,
+                  c10::SymInt max_seqlen,
+                  bool is_inverse = false);
+
+void swap_blocks(torch::Tensor &dst,
+                 const torch::Tensor &src,
+                 const c10::Dict<int64_t, int64_t> &block_mapping_dict,
+                 const c10::optional<int64_t> &block_size_in_bytes = c10::nullopt);
+
+void copy_blocks(const std::vector<torch::Tensor> &k_caches,
+                 const std::vector<torch::Tensor> &v_caches,
+                 const c10::Dict<int64_t, c10::List<int64_t>> &block_mapping);
+
+std::tuple<std::vector<at::Tensor>, std::vector<at::Tensor>> copy_blocks_out_of_place(
+    const std::vector<torch::Tensor> &k_caches,
+    const std::vector<torch::Tensor> &v_caches,
+    const c10::Dict<int64_t, c10::List<int64_t>> &block_mapping);
+
+void scaled_matmul(const at::Tensor &output,
+                   const at::Tensor &a_tensor,
+                   const at::Tensor &b_tensor,
+                   const c10::optional<at::Tensor> &a_scale,
+                   const c10::optional<at::Tensor> &a_zero,
+                   const c10::optional<at::Tensor> &a_calib,
+                   const c10::optional<at::Tensor> &b_scale,
+                   const c10::optional<at::Tensor> &b_zero,
+                   const c10::optional<at::Tensor> &b_calib,
+                   const c10::optional<at::Tensor> &bias,
+                   const c10::optional<at::Tensor> &c_tensor,
+                   const c10::optional<at::Tensor> &c_scale,
+                   const c10::optional<at::Tensor> &c_zero,
+                   const c10::optional<at::Tensor> &gemm_output_scale,
+                   const c10::optional<at::Tensor> &gemm_output_zero,
+                   const std::string &quant_algo,
+                   const std::string &a_quant_layout,
+                   const std::string &b_quant_layout,
+                   int64_t a_quant_bit_size,
+                   int64_t b_quant_bit_size,
+                   const std::string &act_mode,
+                   bool use_hp_active,
+                   double act_coef,
+                   double alpha,
+                   double beta,
+                   bool trans_a,
+                   bool trans_b);
+
+void scaled_matmul_tile(const at::Tensor &output,
+                        const at::Tensor &a_tensor,
+                        const at::Tensor &b_tensor,
+                        const c10::optional<at::Tensor> &a_scale,
+                        const c10::optional<at::Tensor> &a_zero,
+                        const c10::optional<at::Tensor> &a_calib,
+                        const c10::optional<at::Tensor> &b_scale,
+                        const c10::optional<at::Tensor> &b_zero,
+                        const c10::optional<at::Tensor> &b_calib,
+                        const c10::optional<at::Tensor> &bias,
+                        const c10::optional<at::Tensor> &c_tensor,
+                        const c10::optional<at::Tensor> &c_scale,
+                        const c10::optional<at::Tensor> &c_zero,
+                        const c10::optional<at::Tensor> &gemm_output_scale,
+                        const c10::optional<at::Tensor> &gemm_output_zero,
+                        const std::string &quant_algo,
+                        const std::string &a_quant_layout,
+                        const std::string &b_quant_layout,
+                        int64_t a_quant_bit_size,
+                        int64_t b_quant_bit_size,
+                        const std::string &act_mode,
+                        bool use_hp_active,
+                        double act_coef,
+                        double alpha,
+                        double beta,
+                        bool trans_a,
+                        bool trans_b,
+                        const c10::optional<c10::Dict<std::string, int64_t>> &tile_config);
+
+void active(const torch::Tensor &input,
+            const torch::Tensor &output,
+            const c10::optional<torch::Tensor> &bias,
+            const c10::optional<torch::Tensor> &cusum_token_count,
+            const std::string &act_mode,
+            bool is_gated,
+            c10::SymInt start_expert_id,
+            c10::SymInt expert_size,
+            double active_coef = 1.0,
+            bool high_precision = false,
+            std::string gelu_approximate = "none",
+            int64_t swiglu_limit = 0,
+            const c10::optional<torch::Tensor> &weight = c10::nullopt);
+
+void scaled_quantize(const at::Tensor &x,
+                     const at::Tensor &output,
+                     const c10::optional<at::Tensor> &output_scale,
+                     const c10::optional<at::Tensor> &x_scale,
+                     const c10::optional<at::Tensor> &x_zero,
+                     const c10::optional<at::Tensor> &m_list,
+                     const c10::optional<at::Tensor> &gather_index,
+                     const c10::optional<at::Tensor> &gather_index_start_position,
+                     const c10::optional<at::Tensor> &scale_upper_bound,
+                     const std::string &quant_mode,
+                     const std::string &act_mode,
+                     double active_coef,
+                     bool is_gated,
+                     int64_t quant_bit_size = 8,
+                     bool need_output_scale_trans = false,
+                     const c10::optional<at::Tensor> &output_reduced = c10::nullopt,
+                     int64_t group_size = 1);
+
+at::Tensor matmul(const at::Tensor &a,
+                  const at::Tensor &b,
+                  const c10::optional<at::Tensor> &bias,
+                  const c10::optional<at::Tensor> &c,
+                  const c10::optional<at::Tensor> &a_scale_tensor,
+                  const c10::optional<at::Tensor> &b_scale_tensor,
+                  const c10::optional<std::string> &dtype,
+                  const c10::optional<c10::Dict<std::string, int64_t>> &tile_config,
+                  const std::string &act_mode,
+                  double alpha,
+                  double beta,
+                  bool fast_act,
+                  bool approximate,
+                  double a_scale,
+                  double b_scale,
+                  bool trans_a,
+                  bool trans_b);
+
+at::Tensor matmul_aot_inductor(const at::Tensor &a,
+                               const at::Tensor &b,
+                               const c10::optional<at::Tensor> &bias,
+                               const c10::optional<at::Tensor> &c,
+                               const c10::optional<at::Tensor> &a_scale_tensor,
+                               const c10::optional<at::Tensor> &b_scale_tensor,
+                               const c10::optional<std::string> &dtype,
+                               const std::string &act_mode,
+                               double alpha,
+                               double beta,
+                               bool fast_act,
+                               bool approximate,
+                               double a_scale,
+                               double b_scale,
+                               bool trans_a,
+                               bool trans_b);
+
+void matmul_inplace(const at::Tensor &a,
+                    const at::Tensor &b,
+                    const at::Tensor &output,
+                    const c10::optional<at::Tensor> &bias,
+                    const c10::optional<at::Tensor> &c,
+                    const c10::optional<at::Tensor> &a_scale_tensor,
+                    const c10::optional<at::Tensor> &b_scale_tensor,
+                    const c10::optional<c10::Dict<std::string, int64_t>> &tile_config,
+                    const std::string &act_mode,
+                    double alpha,
+                    double beta,
+                    bool fast_act,
+                    bool approximate,
+                    double a_scale,
+                    double b_scale,
+                    bool trans_a,
+                    bool trans_b);
+
+void matmul_v2(const at::Tensor &a,
+               const at::Tensor &b,
+               const at::Tensor &output,
+               const c10::optional<at::Tensor> &bias,
+               const c10::optional<at::Tensor> &c,
+               const c10::optional<at::Tensor> &a_scale_tensor,
+               const c10::optional<at::Tensor> &b_scale_tensor,
+               const std::string &act_mode,
+               double alpha,
+               double beta,
+               bool fast_act,
+               bool approximate,
+               double a_scale,
+               double b_scale,
+               bool trans_a,
+               bool trans_b);
+
+void group_gemm(const at::Tensor &a_tensor,
+                const at::Tensor &b_tensor,
+                const at::Tensor &dim_list, /*m_list or k_list*/
+                const at::Tensor &d_tensor,
+                const c10::optional<at::Tensor> &gather_idx,
+                const c10::optional<at::Tensor> &c_tensor,
+                const c10::optional<at::Tensor> &alpha,
+                const c10::optional<at::Tensor> &beta,
+                const c10::optional<at::Tensor> &a_scale,
+                const c10::optional<at::Tensor> &b_scale,
+                const c10::optional<at::Tensor> &bias,
+                const c10::optional<at::Tensor> &a_calibration,
+                const c10::optional<at::Tensor> &b_calibration,
+                const c10::optional<at::List<int64_t>> &quant_flag,
+                const c10::optional<at::Tensor> &b_offset,
+                const c10::optional<c10::Dict<std::string, int64_t>> &tile_config,
+                const c10::SymInt max_dim /*max m in m_list or max k in k_list*/,
+                const bool trans_a,
+                const bool trans_b,
+                const int64_t a_quant_bit,
+                const c10::optional<at::Tensor> &a_lora = c10::nullopt,
+                const c10::optional<at::Tensor> &b_lora = c10::nullopt,
+                const c10::optional<at::Tensor> &idx_offset = c10::nullopt,
+                const bool allow_tf32 = false,
+                const bool is_symmetric_quant = true);
+
+void group_gemm_v2(const at::Tensor &a_tensor,
+                   const at::Tensor &b_tensor,
+                   const at::Tensor &dim_list, /*m_list or k_list*/
+                   const at::Tensor &d_tensor,
+                   const c10::optional<at::Tensor> &gather_idx,
+                   const c10::optional<at::Tensor> &c_tensor,
+                   const c10::optional<at::Tensor> &alpha,
+                   const c10::optional<at::Tensor> &beta,
+                   const c10::optional<at::Tensor> &a_scale,
+                   const c10::optional<at::Tensor> &b_scale,
+                   const c10::optional<at::Tensor> &bias,
+                   const c10::optional<at::Tensor> &a_calibration,
+                   const c10::optional<at::Tensor> &b_calibration,
+                   const c10::optional<at::Tensor> &quant_flag,  // host tensor
+                   const c10::optional<at::Tensor> &b_offset,
+                   const c10::SymInt max_dim,
+                   const bool trans_a,
+                   const bool trans_b,
+                   const int64_t a_quant_bit,
+                   const c10::optional<at::Tensor> &a_lora = c10::nullopt,
+                   const c10::optional<at::Tensor> &b_lora = c10::nullopt,
+                   const c10::optional<at::Tensor> &idx_offset = c10::nullopt,
+                   const bool allow_tf32 = false,
+                   const bool is_symmetric_quant = true);
+
+void variable_n_group_gemm(const at::Tensor &a_dbl_ptr,
+                           const at::Tensor &b_dbl_ptr,
+                           const at::Tensor &d_dbl_ptr,
+                           const at::Tensor &m_list,
+                           const at::Tensor &n_list,
+                           const at::Tensor &lda,
+                           const int64_t max_m,
+                           const int64_t max_n,
+                           const int64_t k,
+                           const std::string &input_dtype = "bfloat16",
+                           const std::string &output_dtype = "float",
+                           const bool allow_tf32 = false);
+
+void preload(const torch::Tensor &weight, const int64_t size);
+
+at::Tensor group_gemm_combine_result_allreduce(const int64_t cncl_comm,
+                                               const at::Tensor &a_tensor,
+                                               const at::Tensor &b_tensor,
+                                               const at::Tensor &m_list,
+                                               const at::Tensor &combine_idx,
+                                               const at::Tensor &combine_weight,
+                                               const c10::optional<at::Tensor> &c_tensor,
+                                               const c10::optional<at::Tensor> &alpha,
+                                               const c10::optional<at::Tensor> &beta,
+                                               const c10::optional<at::Tensor> &a_scale,
+                                               const c10::optional<at::Tensor> &b_scale,
+                                               const c10::optional<std::string> &data_type,
+                                               const int64_t num_token,
+                                               const int64_t topk,
+                                               const int64_t block_n);
+
+void moe_active_topk(const at::Tensor &input,
+                     c10::SymInt topk,
+                     c10::SymInt num_expert_group,
+                     c10::SymInt topk_group,
+                     bool normalize,
+                     const c10::optional<at::Tensor> &mask,
+                     const std::string &normed_by,
+                     const std::string &act_type,
+                     double route_scale,
+                     const c10::optional<at::Tensor> &score_bias,
+                     at::Tensor &reduce_weight,
+                     at::Tensor &expert_id);
+
+void moe_softplus_topk(const at::Tensor &input,
+                       const c10::optional<at::Tensor> &input_ids,
+                       const c10::optional<at::Tensor> &tid2eid,
+                       const c10::optional<at::Tensor> &bias,
+                       const int64_t topk,
+                       const double route_scale,
+                       at::Tensor &reduce_weight,
+                       at::Tensor &expert_id);
+
+std::vector<at::Tensor> moe_append_shared_expert(const at::Tensor &reduce_weight,
+                                                 const at::Tensor &expert_id,
+                                                 c10::SymInt num_expert,
+                                                 c10::SymInt shared_expert_num,
+                                                 c10::SymInt world_size,
+                                                 const std::string &parallel_mode);
+
+at::Tensor moe_expand_input(const torch::Tensor &input,
+                            const torch::Tensor &gather_idx,
+                            const c10::optional<torch::Tensor> &cusum_token_count,
+                            c10::SymInt start_expert_id,
+                            c10::SymInt expert_size);
+
+void moe_expand_input_inplace(const torch::Tensor &input,
+                              const torch::Tensor &gather_idx,
+                              const c10::optional<torch::Tensor> &cusum_token_count,
+                              c10::SymInt start_expert_id,
+                              c10::SymInt expert_size,
+                              const torch::Tensor &output);
+
+std::vector<at::Tensor> moe_gen_idx(const torch::Tensor &expert_id,
+                                    c10::SymInt expert_num,
+                                    bool return_token2expert_idx = false);
+
+void moe_combine_result(const at::Tensor &input,
+                        const at::Tensor &output,
+                        const at::Tensor &reduce_weight,
+                        const at::Tensor &gather_ids,
+                        const c10::optional<at::Tensor> &residual,
+                        const c10::optional<at::Tensor> &cusum_token_count,
+                        c10::SymInt start_expert_id,
+                        c10::SymInt expert_size,
+                        const c10::optional<at::Tensor> &bias);
+
+at::Tensor moe_all2all_gen_send_layout(const at::Tensor &input, int64_t nrank);
+
+void fused_rope(at::Tensor &qkv,
+                at::Tensor &key_cache_hp,
+                at::Tensor &value_cache_hp,
+                const c10::optional<at::Tensor> &key_cache_lp,
+                const c10::optional<at::Tensor> &value_cache_lp,
+                const at::Tensor &sin_table,
+                const at::Tensor &cos_table,
+                const at::Tensor &position_ids,
+                const at::Tensor &gamma,
+                const c10::optional<at::Tensor> &k_beta,
+                const c10::optional<at::Tensor> &key_scale_hp,
+                const c10::optional<at::Tensor> &value_scale_hp,
+                const c10::optional<at::Tensor> &key_scale_lp,
+                const c10::optional<at::Tensor> &value_scale_lp,
+                const c10::optional<at::Tensor> &cache_bs_id_hp,
+                const c10::optional<at::Tensor> &cache_seq_offsets_hp,
+                const c10::optional<at::Tensor> &cache_bs_id_lp,
+                const c10::optional<at::Tensor> &cache_seq_offsets_lp,
+                const c10::optional<at::Tensor> &slot_mapping_hp,
+                const c10::optional<at::Tensor> &slot_mapping_lp,
+                const std::string &norm_type,
+                c10::SymInt rope_dim_offset,
+                const double eps,
+                const c10::optional<at::Tensor> &q_gamma = c10::nullopt);
+
+void batch_matmul_inplace(const at::Tensor &a,
+                          const at::Tensor &b,
+                          const at::Tensor &d,
+                          const c10::optional<at::Tensor> &c,
+                          const c10::optional<at::Tensor> &bias,
+                          const c10::optional<at::Tensor> &a_scale_tensor,
+                          const c10::optional<at::Tensor> &b_scale_tensor,
+                          const std::string &act_mode,
+                          double alpha,
+                          double beta,
+                          double a_scale,
+                          double b_scale,
+                          bool trans_a,
+                          bool trans_b,
+                          bool use_hp_active = false,
+                          bool approximate = false);
+
+at::Tensor batch_matmul(const at::Tensor &a,
+                        const at::Tensor &b,
+                        const c10::optional<at::Tensor> &c,
+                        const c10::optional<at::Tensor> &bias,
+                        const c10::optional<std::string> &dtype,
+                        const c10::optional<at::Tensor> &a_scale_tensor,
+                        const c10::optional<at::Tensor> &b_scale_tensor,
+                        const std::string &act_mode,
+                        double alpha,
+                        double beta,
+                        double a_scale,
+                        double b_scale,
+                        bool trans_a,
+                        bool trans_b,
+                        bool use_hp_active,
+                        bool approximate);
+
+at::Tensor moe_cast_gating(const at::Tensor &input, const at::Tensor &weight);
+
+at::Tensor moe_cast_gating_v2(const at::Tensor &input,
+                              const at::Tensor &weight0,
+                              const at::Tensor &weight1,
+                              double alpha);
+
+void update_out_and_lse(at::Tensor &out,
+                        at::Tensor &lse,
+                        const at::Tensor &block_out,
+                        const at::Tensor &block_lse,
+                        const c10::optional<at::Tensor> &seq_offsets,
+                        const c10::optional<at::Tensor> &cu_seqs,
+                        const c10::optional<at::Tensor> &block_cu_seqs);
+
+void dequant_from_linear_cache(at::Tensor &key,
+                               const c10::optional<at::Tensor> &value,
+                               const at::Tensor &key_cache,
+                               const c10::optional<at::Tensor> &value_cache,
+                               const at::Tensor &key_quant_scale,
+                               const c10::optional<at::Tensor> &value_quant_scale,
+                               const at::Tensor &context_lengths,
+                               const c10::SymInt max_context_len,
+                               const c10::optional<at::Tensor> &context_seq_offset,
+                               const c10::optional<at::Tensor> &cache_bs_id,
+                               const c10::optional<at::Tensor> &cache_seq_offset,
+                               const int64_t quant_mode,
+                               const int64_t quant_bit);
+
+void dequant_from_paged_cache(at::Tensor &key,
+                              const c10::optional<at::Tensor> &value,
+                              const at::Tensor &key_cache,
+                              const c10::optional<at::Tensor> &value_cache,
+                              const at::Tensor &key_cache_quant_scale,
+                              const c10::optional<at::Tensor> &value_cache_quant_scale,
+                              const at::Tensor &context_lengths,
+                              const c10::SymInt max_context_len,
+                              const c10::optional<at::Tensor> &context_seq_offset,
+                              const at::Tensor &block_tables,
+                              const int64_t quant_mode,
+                              const int64_t quant_bit);
+
+void reshape_from_cache(at::Tensor &key,
+                        const c10::optional<at::Tensor> &value,
+                        const at::Tensor &key_cache,
+                        const c10::optional<at::Tensor> &value_cache,
+                        const at::Tensor &context_lengths,
+                        c10::SymInt max_context_len,
+                        const c10::optional<at::Tensor> &context_seq_offset,
+                        const c10::optional<at::Tensor> &block_tables,
+                        const c10::optional<at::Tensor> &cache_seq_offset);
+
+void pow2(at::Tensor &output, const at::Tensor &input);
+
+void flush_cache(const torch::Tensor &input);
+
+void fused_indexer_q(const at::Tensor &input_q,
+                     at::Tensor &output,
+                     const c10::optional<at::Tensor> &output_scale,
+                     const at::Tensor &w_q,
+                     const c10::optional<at::Tensor> &w_q_scale,
+                     const c10::optional<at::Tensor> &hadamard_matrix,
+                     const at::Tensor &sin,
+                     const at::Tensor &cos,
+                     const at::Tensor &position_id,
+                     const std::string &quant_mode,
+                     bool interleaved,
+                     bool rope_at_front);
+
+void fused_mla_q(const at::Tensor &input,
+                 at::Tensor &output,
+                 at::Tensor &output_scale,
+                 const c10::optional<at::Tensor> &output_norm,
+                 const at::Tensor &gamma,
+                 const c10::optional<at::Tensor> &smooth_quant_scale,
+                 const at::Tensor &weight_b,
+                 const at::Tensor &weight_b_scale,
+                 const at::Tensor &weight_c,
+                 const at::Tensor &sin,
+                 const at::Tensor &cos,
+                 const at::Tensor &position_id,
+                 const std::string &quant_mode,
+                 double eps,
+                 bool interleaved);
+
+void fused_mla_kv(const torch::Tensor &input_kv,
+                  const torch::Tensor &sin,
+                  const torch::Tensor &cos,
+                  const torch::Tensor &position_id,
+                  const torch::Tensor &gamma,
+                  const torch::Tensor &kv_cache,
+                  const c10::optional<torch::Tensor> &kv_cache_scale,
+                  const c10::optional<torch::Tensor> &slot_mapping,
+                  const c10::optional<torch::Tensor> &cache_bs_id,
+                  const c10::optional<torch::Tensor> &cache_seq_offset,
+                  const std::string &quant_mode,
+                  bool is_paged_cache,
+                  double eps,
+                  bool interleaved);
+
+void flat_quant(const at::Tensor &input,
+                const at::Tensor &affine_weight_left,
+                const at::Tensor &affine_weight_right,
+                const c10::optional<at::Tensor> &input_scale,
+                const c10::optional<at::Tensor> &clip_factor_max,
+                const c10::optional<at::Tensor> &clip_factor_min,
+                const int64_t quant_mode,
+                const bool asym_quant,
+                const at::Tensor &output,
+                const at::Tensor &output_scale,
+                const c10::optional<at::Tensor> &output_calibration,
+                const bool fast_compute = false);
+
+void svd_quant(const at::Tensor &input,
+               const at::Tensor &weight_lora_up,
+               const at::Tensor &smooth,
+               const at::Tensor &lora_scales,
+               const at::Tensor &output_lora_down,
+               const at::Tensor &output_quant,
+               const at::Tensor &output_quant_scales,
+               const int64_t quant_mode,
+               const bool &asym_quant,
+               const std::string &quant_dtype,
+               const std::string &act_mode,
+               const double active_coef,
+               const bool is_gated,
+               const c10::optional<at::Tensor> &m_list,
+               const c10::optional<at::Tensor> &gather_index,
+               const c10::optional<at::Tensor> &gather_index_start_position);
+
+void dynamic_per_channel_quant(const at::Tensor &input,
+                               const c10::optional<at::Tensor> &seq_lens,
+                               const c10::SymInt max_seq,
+                               const at::Tensor &quant_out,
+                               const at::Tensor &quant_scale);
+
+void quant_per_block(const at::Tensor &q,
+                     const c10::optional<at::Tensor> &k,
+                     const c10::optional<at::Tensor> &v,
+                     const c10::optional<at::Tensor> &seq_lens_q,
+                     const c10::optional<at::Tensor> &seq_lens_k,
+                     const c10::optional<at::Tensor> &seq_lens_v,
+                     const c10::SymInt max_seq_q,
+                     const c10::SymInt max_seq_k,
+                     const c10::SymInt max_seq_v,
+                     const c10::SymInt block_size_q,
+                     const c10::SymInt block_size_k,
+                     const bool smooth_k,
+                     const at::Tensor &quant_q,
+                     const at::Tensor &q_scale,
+                     const c10::optional<at::Tensor> &quant_k,
+                     const c10::optional<at::Tensor> &k_scale,
+                     const c10::optional<at::Tensor> &quant_v,
+                     const c10::optional<at::Tensor> &v_scale,
+                     const c10::optional<at::Tensor> &k_mean);
+
+void quant_mx_qkv(const at::Tensor &q,
+                  const c10::optional<at::Tensor> &k,
+                  const c10::optional<at::Tensor> &v,
+                  const at::Tensor &quant_q,  // output
+                  const at::Tensor &q_scale,
+                  const c10::optional<at::Tensor> &quant_k,
+                  const c10::optional<at::Tensor> &k_scale,
+                  const c10::optional<at::Tensor> &quant_v,
+                  const c10::optional<at::Tensor> &v_scale,
+                  const c10::optional<at::Tensor> &k_mean,
+                  const c10::optional<at::Tensor> &cu_seq_lens_q,   // not use
+                  const c10::optional<at::Tensor> &cu_seq_lens_kv,  // only need when smooth_k
+                  const c10::SymInt max_seq_q,
+                  const c10::SymInt max_seq_kv,
+                  const bool smooth_k,
+                  const bool trans_v);
+
+void quant_conv3d(const at::Tensor &input,
+                  const at::Tensor &weight,
+                  const c10::optional<at::Tensor> &bias,
+                  const at::Tensor &input_scale,
+                  const at::Tensor &weight_scale,
+                  at::Tensor &output,
+                  const at::List<int64_t> &stride,
+                  const at::List<int64_t> &padding,
+                  const at::List<int64_t> &dilation,
+                  c10::SymInt groups,
+                  const std::string &compute_dtype);
+
+void rejection_sample(at::Tensor &output_token_ids,
+                      const at::Tensor &draft_token_ids,
+                      const at::Tensor &num_draft_tokens,
+                      const at::Tensor &cu_num_draft_tokens,
+                      const c10::optional<at::Tensor> &draft_probs,
+                      const at::Tensor &target_probs,
+                      const at::Tensor &bonus_token_ids,
+                      const at::Tensor &uniform_rand,
+                      const at::Tensor &uniform_probs,
+                      const c10::SymInt max_spec_len,
+                      const bool high_acc = true);
+
+void masked_dot_select_sparse_paged_kv(const at::Tensor &q_low_rank,
+                                       const at::Tensor &label_cache,
+                                       const at::Tensor &context_lens,
+                                       const at::Tensor &label_cache_block_table,
+                                       const at::Tensor &kv_cache_block_table,
+                                       const c10::SymInt recent_window,
+                                       const c10::SymInt kv_cache_blk_size,
+                                       const c10::SymInt sparse_kv_len,
+                                       const at::Tensor &sparse_block_tables,
+                                       const at::Tensor &sparse_contexts_lens);
+
+void apply_topkp(const at::Tensor &logits,
+                 const at::Tensor &index_in,
+                 const at::List<int64_t> &per_slice_k,
+                 const at::List<double> &per_slice_p,
+                 const at::Tensor &output_logits,
+                 const at::Tensor &sorted_logits_out,
+                 const at::Tensor &index_out,
+                 const at::Tensor &true_select_len);
+
+void random_sample(const torch::Tensor &probs,
+                   torch::Tensor &output,
+                   bool is_gumbel_max,
+                   c10::optional<torch::Generator> genenerator);
+
+void apply_topkp_v2(const at::Tensor &logits,
+                    const at::Tensor &index_in,
+                    const at::Tensor &temperature_list,
+                    const at::Tensor &minp_list,
+                    const at::Tensor &topk_list,
+                    const at::Tensor &topp_list,
+                    const at::Tensor &logits_output,
+                    const at::Tensor &sorted_logits_out,
+                    const at::Tensor &index_out,
+                    const at::Tensor &true_select_len);
+
+void index_selected_rope(const torch::Tensor &input,
+                         const torch::Tensor &output,
+                         const torch::Tensor &sin_table,
+                         const torch::Tensor &cos_table,
+                         const torch::Tensor &ids,
+                         const bool input_discrete_only);
+
+void gather_split(const at::Tensor &output1,
+                  const at::Tensor &output2,
+                  const at::Tensor &input,
+                  const at::Tensor &gather_index,
+                  const at::Tensor &valid_token_num,
+                  const c10::optional<at::Tensor> &output3 = c10::nullopt);
+
+void hshare(at::Tensor &hshare_block_tables,
+            at::Tensor &hshare_kv_len_after_store,
+            const at::Tensor &block_table,
+            const at::Tensor &kv_len_after_store,
+            const c10::optional<at::Tensor> &disable_hshare_layer,
+            const at::Tensor &ratios,
+            const at::Tensor &indices_cache,
+            const at::Tensor &indices_cache_offset,
+            const at::Tensor &block_num_cache,
+            const c10::SymInt actual_batch_size,
+            const c10::SymInt max_seq_len,
+            const c10::SymInt block_size,
+            const c10::SymInt layer_num,
+            const c10::SymInt kv_head_num);
+
+void moe_all2all_gen_gather_index(const at::Tensor &gather_by_expert_index,
+                                  const at::Tensor &gather_by_rank_index,
+                                  const at::Tensor &token_count,
+                                  const at::Tensor &cusum_token_count,
+                                  const at::Tensor &token_sum,
+                                  const at::Tensor &token_num,
+                                  const int64_t pad_num);
+
+void compress_kv(const at::Tensor &k,
+                 const at::Tensor &v,
+                 const c10::optional<at::Tensor> &cu_seq_lens,
+                 const at::Tensor &wk_cmp,
+                 const at::Tensor &wv_cmp,
+                 const at::Tensor &pe_table_k,
+                 const at::Tensor &pe_table_v,
+                 const int64_t max_seq_len,
+                 const int64_t compress_length,
+                 const int64_t compress_stride,
+                 at::Tensor &k_out,
+                 at::Tensor &v_out,
+                 at::Tensor &compress_lens_out);
+
+void concat_block_table(const at::Tensor &first_block_table,
+                        const at::Tensor &first_context_lens,
+                        const at::Tensor &second_block_table,
+                        const at::Tensor &second_context_lens,
+                        const at::Tensor &new_block_table,
+                        const at::Tensor &new_context_lens);
+
+std::vector<at::Tensor> moe_all2all_create(const int64_t max_dispatch_token_byte,
+                                           const int64_t max_combine_token_byte,
+                                           const int64_t max_expert_num,
+                                           const int64_t max_token_num,
+                                           const int64_t rank,
+                                           const int64_t nrank,
+                                           const at::Tensor &place_holder);
+
+void fused_compress_single_kv(const at::Tensor &kv,
+                              const at::Tensor &score,
+                              const at::Tensor &position,
+                              const at::Tensor &ape,
+                              const at::Tensor &gamma,
+                              const at::Tensor &sin,
+                              const at::Tensor &cos,
+                              const c10::optional<at::Tensor> &hadamard_matrix,
+                              const at::Tensor &slot_mapping,
+                              const at::Tensor &kv_cache,
+                              const c10::optional<at::Tensor> &kv_cache_scale,
+                              const double eps,
+                              const bool overlap,
+                              const at::Tensor &state_cache,
+                              const at::Tensor &state_bt,
+                              const int64_t state_width,
+                              const int64_t state_block_size,
+                              const at::Tensor &cu_query_len,
+                              const int64_t K = 0);
+
+void update_compressor_states(at::Tensor &kv_state,
+                              at::Tensor &score_state,
+                              const at::Tensor &accept_tokens,
+                              const at::Tensor &batch_to_kv_state,
+                              const at::Tensor &positions,
+                              const at::Tensor &cu_query_len,
+                              const bool overlap,
+                              const int64_t K);
+
+at::Tensor fused_mul_reduce_sum(const at::Tensor &x, const at::Tensor &w);
+
+void moe_all2all_init(const int64_t all2all_handle,
+                      const at::Tensor &all_exchange_info,
+                      const at::Tensor &place_holder);
+
+void moe_all2all_dispatch(const int64_t all2all_handle,
+                          const int64_t token_byte,
+                          const int64_t token_num,
+                          const at::Tensor &send_layout,
+                          const at::Tensor &send_token_num,
+                          const at::Tensor &recv_layout,
+                          const at::Tensor &recv_token_num,
+                          const c10::optional<at::Tensor> &send_token,
+                          const c10::optional<at::Tensor> &recv_token);
+
+void moe_all2all_combine(const int64_t all2all_handle,
+                         const int64_t token_byte,
+                         const int64_t token_num,
+                         const at::Tensor &send_src_layout,
+                         const at::Tensor &send_dst_layout,
+                         const c10::optional<at::Tensor> &send_token,
+                         const c10::optional<at::Tensor> &recv_token);
+
+void moe_all2all_destroy(const int64_t all2all_handle, const at::Tensor &place_holder);
+
+void fused_indexer_k(const torch::Tensor &x,
+                     const torch::Tensor &wk,
+                     const torch::Tensor &wproj,
+                     const torch::Tensor &sin_table,
+                     const torch::Tensor &cos_table,
+                     const torch::Tensor &position_id,
+                     const torch::Tensor &slot_mapping,
+                     const torch::Tensor &head_weights,
+                     const torch::Tensor &k_cache,
+                     const c10::optional<torch::Tensor> &k_cache_scale,
+                     const c10::optional<torch::Tensor> &hadamard_matrix,
+                     bool interleaved,
+                     const c10::optional<torch::Tensor> &gamma = c10::nullopt,
+                     const c10::optional<torch::Tensor> &beta = c10::nullopt,
+                     double eps = 1e-6);
+
+void masked_indexer_select_paged_kv(
+    const at::Tensor &query,
+    const at::Tensor &k_cache,
+    const at::Tensor &weights,
+    const at::Tensor &kv_cache_block_table,
+    const c10::optional<at::Tensor> &cu_seq_q_lens,
+    const c10::optional<at::Tensor> &cu_seq_k_lens,
+    const c10::optional<at::Tensor> &k_context_lens,
+    const c10::optional<at::Tensor> &k_cache_block_table,
+    const bool is_prefill,
+    const c10::SymInt index_topk,
+    const c10::SymInt kv_cache_block_size,
+    const double softmax_scale,
+    const c10::optional<at::Tensor> &q_scale,
+    const c10::optional<at::Tensor> &k_scale_cache,
+    const at::Tensor &sparse_block_table,
+    const at::Tensor &sparse_context_lens,
+    const bool is_score_float,
+    const int64_t compress_ratio = 1,
+    const c10::optional<at::Tensor> &kv_cache_block_table_offset = c10::nullopt);
+
+void fused_gather_clamp_concat(at::Tensor &output,
+                               const at::Tensor &q,
+                               const at::Tensor &gather_index,
+                               const at::Tensor &total_index_num);
+
+void gen_label_q_idx(const at::Tensor &cu_seqs_q,
+                     const at::Tensor &seqs_k,
+                     const at::Tensor &gmm_a,
+                     const at::Tensor &gmm_b,
+                     const at::Tensor &gmm_d,
+                     const at::Tensor &label_q_index,
+                     const at::Tensor &index_num,
+                     const at::Tensor &new_cu_seq_lens_q,
+                     const at::Tensor &gmm_m_list,
+                     const at::Tensor &gmm_n_list,
+                     const at::Tensor &gmm_a_ptrs,
+                     const at::Tensor &gmm_b_ptrs,
+                     const at::Tensor &gmm_d_ptrs,
+                     const at::Tensor &gmm_lda,
+                     int64_t max_seq_q,
+                     int64_t max_seq_k,
+                     int64_t block_size_q,
+                     int64_t block_size_k);
+
+void masked_topk_select_block_table(const torch::Tensor &qk_logit,
+                                    const torch::Tensor &origin_block_table,
+                                    const torch::Tensor &cu_seqs_q,
+                                    const torch::Tensor &seqs_k,
+                                    const torch::Tensor &sparse_context_lens,
+                                    const torch::Tensor &sparse_block_table,
+                                    int64_t max_seq_q,
+                                    int64_t max_seq_k,
+                                    int64_t block_size_q,
+                                    int64_t block_size_k,
+                                    int64_t recent_window,
+                                    double sparse_ratio,
+                                    bool window_included);
+
+int64_t get_lib_version(const std::string &lib_name, const at::Tensor &place_holder);
+
+void solve_tril(const at::Tensor &input,
+                const at::Tensor &output,
+                const c10::optional<at::Tensor> &cu_seqlens);
+
+void ssparse_matmul(const at::Tensor &a,
+                    const at::Tensor &b,
+                    const at::Tensor &a_scale,
+                    const at::Tensor &b_scale,
+                    const at::Tensor &output,
+                    const std::string &act_name,
+                    const c10::optional<at::Tensor> &m_list,
+                    const c10::optional<at::Tensor> &gather_idx,
+                    const c10::optional<at::Tensor> &bias,
+                    const c10::optional<at::Tensor> &c,
+                    const c10::SymInt max_m,
+                    const double alpha,
+                    const double beta,
+                    const bool trans_a,
+                    const bool trans_b);
+
+void transpose_all2all(const int64_t cncl_comm,
+                       const int64_t pre_num_block,
+                       const int64_t pre_block_count,
+                       const int64_t post_num_block,
+                       const int64_t post_block_count,
+                       const at::Tensor &send,
+                       const at::Tensor &recv);
+
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> convert_vertical_slash_index(
+    torch::Tensor &seqlens,
+    torch::Tensor &ctxlens,
+    torch::Tensor &vertical_indexes,
+    torch::Tensor &slash_indexes,
+    const c10::SymInt max_seqlen_q,
+    const c10::SymInt block_size_M,
+    const c10::SymInt block_size_N);
+
+std::vector<at::Tensor> hc_split_sinkhorn(const torch::Tensor &mixes,
+                                          const torch::Tensor &hc_scale,
+                                          const torch::Tensor &hc_base,
+                                          const c10::optional<at::Tensor> &pre_scale,
+                                          const int64_t hc_mult = 4,
+                                          const int64_t sinkhorn_iter = 20,
+                                          const double eps = 1e-6);
+
+torch::Tensor hamming_score(const torch::Tensor &query_code,
+                            const torch::Tensor &key_codes,
+                            const torch::optional<torch::Tensor> block_table_opt,
+                            const torch::Tensor &seq_len,
+                            const c10::SymInt max_seq_len,
+                            const c10::SymInt sink,
+                            const c10::SymInt recent);
+
+void quant_mx_cpu(const at::Tensor &input,
+                  at::Tensor &output,
+                  at::Tensor &scale,
+                  torch::ScalarType dst_dtype,
+                  torch::ScalarType scale_dtype);
+
+void dequant_mx_cpu(const at::Tensor &input,
+                    torch::Tensor &output,
+                    torch::ScalarType output_data_type,
+                    const at::Tensor &scale);
+
+void fused_mhc_post(const at::Tensor &x,
+                    const at::Tensor &residual,
+                    const at::Tensor &post,
+                    const at::Tensor &comb,
+                    const at::Tensor &output,
+                    const c10::optional<at::Tensor> &output_rms,
+                    const bool compute_rms,
+                    const double eps);
+
+void fused_compress_multi_kv(const at::Tensor &kv,
+                             const at::Tensor &score,
+                             at::Tensor &state_cache,
+                             const at::Tensor &state_block_table,
+                             const at::Tensor &cu_seqlens,
+                             const at::Tensor &positions,
+                             const at::Tensor &ape,
+                             const int64_t max_seqlen,
+                             const bool overlap,
+                             at::Tensor &compressed_kv);
+
+void fused_mla_q_v2(const at::Tensor &input,
+                    at::Tensor &output,
+                    const c10::optional<at::Tensor> &output_norm,
+                    const at::Tensor &gamma,
+                    const c10::optional<at::Tensor> &smooth_quant_scale,
+                    const at::Tensor &weight_b,
+                    const c10::optional<at::Tensor> &weight_b_scale,
+                    const at::Tensor &sin,
+                    const at::Tensor &cos,
+                    const at::Tensor &position_id,
+                    double eps,
+                    bool interleaved);
+
+void get_compress_block_tables(const at::Tensor &compress_block_table,
+                               const at::Tensor &compress_context_lens,
+                               const at::Tensor &seq_k_lens,
+                               const at::Tensor &query_start_loc,
+                               const at::Tensor &offset,
+                               const at::Tensor &block_table,
+                               const int64_t block_size,
+                               const int64_t ratio);
+
+void get_window_block_tables(const at::Tensor &window_block_table,
+                             const at::Tensor &window_context_lens,
+                             const at::Tensor &seq_k_lens,
+                             const at::Tensor &query_start_loc,
+                             const at::Tensor &block_table,
+                             const int64_t block_size,
+                             const int64_t window_size);
+
+void single_layer_kv_transfer(torch::Tensor &lmc_key_value_cache,
+                              torch::Tensor &vllm_key_value_cache,
+                              const torch::Tensor &slot_mapping,
+                              int64_t direction,
+                              int64_t kv_format,
+                              bool token_major);
+
+}  // namespace torch_api
+}  // namespace tmo
+
+#endif  // CSRC_TORCH_API_TORCH_MLU_OPS_H_
